@@ -3,16 +3,19 @@
 
 print("MQTT File Open")
 
+NodeName = config.ID[node.chipid()]
+
+--Client Setup
+
+-- init mqtt client with logins, keepalive timer 120sec
+--m = mqtt.Client("clientid", 120, "user", "password", cleansession)
+m = mqtt.Client(NodeName, 120, config.USER, config.PASS, 0)
+
+
 -----------------------------
     --CallBacks
 -----------------------------
 
-NodeName = config.ID[node.chipid()]
--- init mqtt client without logins, keepalive timer 120s
---m = mqtt.Client("clientid", 120)
--- init mqtt client with logins, keepalive timer 120sec
---m = mqtt.Client("clientid", 120, "user", "password")
-m = mqtt.Client(NodeName, 120, config.USER, config.PASS)
 
 -- setup Last Will and Testament (optional)
 -- Broker will publish a message with qos = 0, retain = 0, data = "offline"
@@ -22,7 +25,7 @@ m:lwt("auto/water/status", NodeName .. " Disconnected - LW", 2, 0)
 m:on("offline", function(client)
     print (NodeName .. " offline")
     --                  min /* sec /* millisec
-    tmr.create():alarm(1 * 10 * 1000, tmr.ALARM_SINGLE, do_mqtt_connect)
+    tmr.create():alarm(1 * 60 * 1000, tmr.ALARM_SINGLE, do_mqtt_connect) --if broker offline, retry after 1 min
     end)
 
 -----------------------------
@@ -36,15 +39,15 @@ m:on("offline", function(client)
 
 
 function Relay_on()
-    print(config.ENDPOINT .. "/status" .. " > " .. NodeName .. " > Relay On")
+    print(config.ENDPOINT .. "/" .. NodeName .. " > " .. NodeName .. " > Relay On")
     gpio.write(2, gpio.HIGH)
-    m:publish(config.ENDPOINT .. "/status", NodeName .. " Relay On", 2, 0)
-    tmr.create():alarm(10 * 1000, tmr.ALARM_SINGLE, Relay_Off)
+    m:publish(config.ENDPOINT .. "/" .. NodeName, NodeName .. " Relay On", 2, 0)
+    tmr.create():alarm(1 * 10 * 1000, tmr.ALARM_SINGLE, Relay_Off) --3 min of water
 end
 
 function Relay_Off()
-    print(config.ENDPOINT .. "/status" .. " > " .. NodeName .. " > Relay Off")
-    m:publish(config.ENDPOINT .. "/status", NodeName .. " Relay Off", 2, 0)
+    print(config.ENDPOINT .. "/" .. NodeName .. " > " .. NodeName .. " > Relay Off")
+    m:publish(config.ENDPOINT .. "/" .. NodeName, NodeName .. " Relay Off", 2, 0)
     gpio.write(2, gpio.LOW)
 end
 
@@ -54,39 +57,50 @@ end
 
       m:on("message", function(client, topic, data)
       gpio.serout(4,gpio.HIGH,{99500,99500},3)
-      if data ~= nil then
-        print("MQTT < " .. topic .. " < " .. data)   
-        if string.match(data, "on") then
-            Relay_on()
-        elseif string.match(data, "off") then
-            Relay_Off()
-        else
-            print(">> " .. data .. " --Not a Command--")
-        end
-      end
-    end)
+      tmr.create():alarm(1 * 1 * 1000, tmr.ALARM_SINGLE, function()
+          if data ~= nil then
+            print("MQTT < " .. topic .. " < " .. data)   
+            if string.match(data, "on") then
+                Relay_on()
+            elseif string.match(data, "off") then
+                Relay_Off()
+            else
+                print(">> " .. data .. " --Not a Command--")
+            end
+          end
+          gpio.write(4, gpio.HIGH)
+      end)
+      end)
 
 
 -----------------------------
     --Connecction
 -----------------------------
 
--- on publish overflow receive event
---m:on("overflow", function(client, topic, data)
---  print(topic .. " partial overflowed message: " .. data )
---end)
+--on publish overflow receive event
+m:on("overflow", function(client, topic, data)
+  print(topic .. " partial overflowed message: " .. data )
+end)
+
+
+-----------------------------
+    --Connect & Sub
+-----------------------------
 
 function connect()
         print("MQTT connected")
+        gpio.write(4, gpio.HIGH)
 
-        gpio.write(4, gpio.HIGH)     
+        m:subscribe( { [config.ENDPOINT]=2, [config.ENDPOINT .. "/" .. NodeName]=2 }, function(conn)
         
-        m:subscribe(config.ENDPOINT, 2, function(conn)
             print(NodeName .. " > " .. config.ENDPOINT .. " > subscribed")
+            print(NodeName .. " > " .. config.ENDPOINT .. "/" .. NodeName .. " > subscribed")
+            
+            m:publish(config.ENDPOINT .. "/status", NodeName .." connected", 2, 0)
+            print(config.ENDPOINT .. "/status" .. " > " .. NodeName .." connected")
+        
         end)
         
-        m:publish(config.ENDPOINT .. "/status", NodeName .." connected", 2, 0)
-        print(config.ENDPOINT .. "/status" .. " > " .. NodeName .." connected")
 end
 
 
@@ -118,7 +132,8 @@ function do_mqtt_connect()
       -- m:on("connect", function)).
       gpio.serout(4,gpio.HIGH,{99500,99500},10)
       print("Calling connect()")
-      tmr.create():alarm(10 * 1000, tmr.ALARM_SINGLE, connect)
+      --tmr.create():alarm(10 * 1000, tmr.ALARM_SINGLE, connect)
+      connect()
     end,
     --Error Handling
     function(client, reason)

@@ -74,6 +74,7 @@ wifi.eventmon.register(wifi.eventmon.STA_GOT_IP, wifi_got_ip_event)
 wifi.eventmon.register(wifi.eventmon.STA_DISCONNECTED, wifi_disconnect_event)
 
 print("Connecting to WiFi access point...")
+wifi.setphymode(wifi.PHYMODE_G)
 wifi.setmode(wifi.STATION)
 wifi.sta.sethostname(config.ID[node.chipid()],true)
 wifi.sta.config({ssid=SSID, pwd=PASSWORD},true)
