@@ -57,11 +57,25 @@ wifi_disconnect_event = function(T)
     disconnect_ct = disconnect_ct + 1
   end
   if disconnect_ct < total_tries then
-    print("Retrying connection...(attempt "..(disconnect_ct+1).." of "..total_tries..")")
+--    print("Retrying connection...(attempt "..(disconnect_ct+1).." of "..total_tries..")")
+    gpio.serout(4,gpio.LOW,{39950,99500},1, function() print("Retrying connection...(attempt "..(disconnect_ct+1).." of "..total_tries..")") end)
   else
     wifi.sta.disconnect()
     print("Aborting connection to AP!")
     disconnect_ct = nil
+
+    print("...waiting before re-attempting...")
+    tmr.create():alarm(20*60*1000, tmr.ALARM_SINGLE, function()
+        print("trying to reconnect")
+        disconnect_ct = 1
+    end)
+
+--    print("witing to restart......")
+--    tmr.create():alarm(20*60*1000, tmr.ALARM_SINGLE, function()
+--        print("restarting")
+--        node.restart()
+--    end)
+    
   end
 end
 
@@ -74,7 +88,10 @@ wifi.eventmon.register(wifi.eventmon.STA_GOT_IP, wifi_got_ip_event)
 wifi.eventmon.register(wifi.eventmon.STA_DISCONNECTED, wifi_disconnect_event)
 
 print("Connecting to WiFi access point...")
-wifi.setphymode(wifi.PHYMODE_G)
+
+--wifi.setphymode(wifi.PHYMODE_G)
+wifi.setphymode(wifi.PHYMODE_B)
+
 wifi.setmode(wifi.STATION)
 wifi.sta.sethostname(config.ID[node.chipid()],true)
 wifi.sta.config({ssid=SSID, pwd=PASSWORD},true)

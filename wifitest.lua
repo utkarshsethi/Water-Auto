@@ -30,6 +30,7 @@ print(wifi.getmode())
 print(wifi.getphymode())
 print(wifi.getchannel())
 print(wifi.sta.getmac())
+
 print(wifi.sta.status())
 print(wifi.sta.getip())
 print(wifi.sta.gethostname())
