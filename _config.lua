@@ -8,12 +8,17 @@ PASSWORD = "PASSWORD"
 config = {}
 
 -- MQTT
+-----------------------------
 config.HOST = "HOST NAME/IP"
 config.PORT = 1883 --E.G.
 -----------------------------
 config.ENDPOINT = "TOPIC" 
 config.USER = "MQTT USER"
 config.PASS = "MQTT PASSWORD"
+
+--Relay On time / Water plants time
+
+config.watertime = (1 * 10 * 1000)  --3 min of water
 
 --ID
 config.ID = {}

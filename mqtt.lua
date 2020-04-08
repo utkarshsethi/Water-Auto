@@ -23,9 +23,9 @@ m = mqtt.Client(NodeName, 120, config.USER, config.PASS, 0)
 m:lwt("auto/water/status", NodeName .. " Disconnected - LW", 2, 0)
 
 m:on("offline", function(client)
-    print (NodeName .. " offline")
+    print (NodeName .. " Broker offline")
     --                  min /* sec /* millisec
-    tmr.create():alarm(1 * 60 * 1000, tmr.ALARM_SINGLE, do_mqtt_connect) --if broker offline, retry after 1 min
+    tmr.create():alarm(1*60*1000, tmr.ALARM_SINGLE, do_mqtt_connect) --if broker offline, retry after 1 min
     end)
 
 -----------------------------
@@ -40,15 +40,15 @@ m:on("offline", function(client)
 
 function Relay_on()
     print(config.ENDPOINT .. "/" .. NodeName .. " > " .. NodeName .. " > Relay On")
-    gpio.write(2, gpio.HIGH)
     m:publish(config.ENDPOINT .. "/" .. NodeName, NodeName .. " Relay On", 2, 0)
-    tmr.create():alarm(1 * 10 * 1000, tmr.ALARM_SINGLE, Relay_Off) --3 min of water
+    gpio.write(2, gpio.HIGH)
+    tmr.create():alarm(config.watertime, tmr.ALARM_SINGLE, Relay_Off) --pick time to water from config.watertime
 end
 
 function Relay_Off()
+    gpio.write(2, gpio.LOW)
     print(config.ENDPOINT .. "/" .. NodeName .. " > " .. NodeName .. " > Relay Off")
     m:publish(config.ENDPOINT .. "/" .. NodeName, NodeName .. " Relay Off", 2, 0)
-    gpio.write(2, gpio.LOW)
 end
 
 
@@ -105,7 +105,7 @@ end
 
 
 function handle_mqtt_error(client, reason)
-    print("Handling Error...Redirecting do_mqtt_connect")
+gpio.serout(4,gpio.LOW,{39950,99500},1, function() print("Handling Error...Redirecting do_mqtt_connect") end)
     tmr.create():alarm(10 * 1000, tmr.ALARM_SINGLE, do_mqtt_connect)
 end
 
