@@ -33,33 +33,36 @@ m:on("offline", function(client)
 -----------------------------
 
 
------------------------------
-    --App Fnc's
------------------------------
-
-
 function Relay_on()
+
     print(config.ENDPOINT .. "/" .. NodeName .. " > " .. NodeName .. " > Relay On")
-    m:publish(config.ENDPOINT .. "/" .. NodeName, NodeName .. " Relay On", 2, 0)
+    m:publish(config.ENDPOINT .. "/" .. NodeName, NodeName .. " Relay On for " .. config.watertime, 2, 0)
     gpio.write(2, gpio.HIGH)
     tmr.create():alarm(config.watertime, tmr.ALARM_SINGLE, Relay_Off) --pick time to water from config.watertime
+
 end
 
 function Relay_Off()
+
     gpio.write(2, gpio.LOW)
     print(config.ENDPOINT .. "/" .. NodeName .. " > " .. NodeName .. " > Relay Off")
     m:publish(config.ENDPOINT .. "/" .. NodeName, NodeName .. " Relay Off", 2, 0)
+
 end
 
 
 -- register message callback beforehand
 -- on publish message receive event
 
-      m:on("message", function(client, topic, data)
-      gpio.serout(4,gpio.HIGH,{99500,99500},3)
-      tmr.create():alarm(1 * 1 * 1000, tmr.ALARM_SINGLE, function()
-          if data ~= nil then
+m:on("message", function(client, topic, data)
+
+    gpio.serout(4,gpio.HIGH,{99500,99500},3)
+
+    tmr.create():alarm( 1 * 1000, tmr.ALARM_SINGLE, function()
+
+        if data ~= nil then
             print("MQTT < " .. topic .. " < " .. data)   
+
             if string.match(data, "on") then
                 Relay_on()
             elseif string.match(data, "off") then
@@ -67,10 +70,13 @@ end
             else
                 print(">> " .. data .. " --Not a Command--")
             end
-          end
-          gpio.write(4, gpio.HIGH)
-      end)
-      end)
+        end
+
+    gpio.write(4, gpio.HIGH)
+
+    end)
+
+end)
 
 
 -----------------------------
@@ -79,7 +85,9 @@ end
 
 --on publish overflow receive event
 m:on("overflow", function(client, topic, data)
-  print(topic .. " partial overflowed message: " .. data )
+
+    print(topic .. " partial overflowed message: " .. data )
+
 end)
 
 
@@ -88,6 +96,7 @@ end)
 -----------------------------
 
 function connect()
+
         print("MQTT connected")
         gpio.write(4, gpio.HIGH)
 
@@ -105,15 +114,29 @@ end
 
 
 function handle_mqtt_error(client, reason)
-gpio.serout(4,gpio.LOW,{39950,99500},1, function() print("Handling Error...Redirecting do_mqtt_connect") end)
-    tmr.create():alarm(10 * 1000, tmr.ALARM_SINGLE, do_mqtt_connect)
+
+    --wait incremental times before reattempting MQTT connect
+    if fail_time == nil then
+        fail_time = 1
+    else
+        fail_time = fail_time + 1
+    end
+
+    if fail_time > 120 then
+        node.restart()
+    end
+
+
+    gpio.serout(4,gpio.LOW,{39950,99500},1, function() print("Handling Error...Redirecting do_mqtt_connect in " .. fail_time*10 .. " sec") end)
+    tmr.create():alarm( fail_time * 10 * 1000, tmr.ALARM_SINGLE, do_mqtt_connect)
 end
+
 
 function do_mqtt_connect()
     --Handle Panic error
     m:close()
     --Connect to MQTT
-    gpio.serout(4,gpio.HIGH,{99500,9950},10)
+    gpio.serout(4,gpio.HIGH,{99500,9950},2)
     print("Attempting to Re - Connect MQTT....")
     -- for TLS: m:connect("192.168.11.118", secure-port, 1)
     -- for TLS: m:connect("192.168.11.118", secure-port, 1)
@@ -122,29 +145,29 @@ function do_mqtt_connect()
     --m:connect("192.168.11.118", 1883, 0, function(client)
     m:connect(config.HOST, config.PORT, false, function(client)
     
-    
-      --print("connected To MQTT Host")
-      print("connecting " .. NodeName .. " to MQTT Host > " .. config.HOST .. " : " .. config.PORT)
-      -- Calling subscribe/publish only makes sense once the connection
-      -- was successfully established. You can do that either here in the
-      -- 'connect' callback or you need to otherwise make sure the
-      -- connection was established (e.g. tracking connection status or in
-      -- m:on("connect", function)).
-      gpio.serout(4,gpio.HIGH,{99500,99500},10)
-      print("Calling connect()")
-      --tmr.create():alarm(10 * 1000, tmr.ALARM_SINGLE, connect)
-      connect()
-    end,
-    --Error Handling
-    function(client, reason)
-      print("MQTT failed reason: " .. reason)
-      handle_mqtt_error()
+        print("connecting " .. NodeName .. " to MQTT Host > " .. config.HOST .. " : " .. config.PORT)
+        -- Calling subscribe/publish only makes sense once the connection
+         -- was successfully established. You can do that either here in the
+         -- 'connect' callback or you need to otherwise make sure the
+         -- connection was established (e.g. tracking connection status or in
+         -- m:on("connect", function)).
+          
+        tmr.create():alarm( 3 * 1000, tmr.ALARM_SINGLE, function()
+            print("Calling connect()")
+            connect()
+        end)
+          --connect()
+        end,
+        --Error Handling
+        function(client, reason)
+            print("MQTT failed reason: " .. reason)
+            handle_mqtt_error()
     end)
 end
 
 -----------------------------
 
-gpio.serout(4,gpio.HIGH,{99500,9950},10, function() print("Start Mqtt") end)
+gpio.serout(4,gpio.HIGH,{99500,9950},5, function() print("Start Mqtt") end)
 do_mqtt_connect()
 
 -----------------------------
