@@ -18,7 +18,7 @@ config.PASS = "MQTT PASSWORD"
 
 --Relay On time / Water plants time
 
-config.watertime = (1 * 10 * 1000)  --3 min of water
+config.watertime = 3 * 60 * 1000  --3 min of water
 
 --ID
 config.ID = {}
