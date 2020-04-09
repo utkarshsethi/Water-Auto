@@ -16,6 +16,18 @@ function startup()
 end
 
 -----------------------------
+    --WIFI RESET--
+-----------------------------
+wifi_reset = function()
+    gpio.serout(4,gpio.LOW,{39950,99500},1, function() print(" Reset WIFI ") end)    
+    wifi.sta.disconnect()
+    wifi.setmode(wifi.NULLMODE)
+    wifi.sta.clearconfig()
+end
+
+-----------------------------
+
+-----------------------------
 
 -- Define WiFi station event callbacks
 wifi_connect_event = function(T)
@@ -38,8 +50,12 @@ wifi_disconnect_event = function(T)
     --the station has disassociated from a previously connected AP
     return
   end
+  
+  
   -- total_tries: how many times the station will attempt to connect to the AP. Should consider AP reboot duration.
-  local total_tries = 75
+  local total_tries = 30
+  local reset_wait = (20*60*1000)
+  
   print("\nWiFi connection to AP("..T.SSID..") has failed!")
 
   --There are many possible disconnect reasons, the following iterates through
@@ -60,21 +76,26 @@ wifi_disconnect_event = function(T)
 --    print("Retrying connection...(attempt "..(disconnect_ct+1).." of "..total_tries..")")
     gpio.serout(4,gpio.LOW,{39950,99500},1, function() print("Retrying connection...(attempt "..(disconnect_ct+1).." of "..total_tries..")") end)
   else
-    wifi.sta.disconnect()
+    wifi_reset()
     print("Aborting connection to AP!")
     disconnect_ct = nil
 
-    print("...waiting before re-attempting...")
-    tmr.create():alarm(20*60*1000, tmr.ALARM_SINGLE, function()
-        print("trying to reconnect")
-        disconnect_ct = 1
-    end)
-
---    print("witing to restart......")
---    tmr.create():alarm(20*60*1000, tmr.ALARM_SINGLE, function()
---        print("restarting")
---        node.restart()
+--    print("...waiting before re-attempting...")
+--    tmr.create():alarm(2*10*1000, tmr.ALARM_SINGLE, function()
+--        print("trying to reconnect")
+--        disconnect_ct = 1
 --    end)
+
+    print("...waiting " .. reset_wait/1000/60 .. " min to restart....")
+    file.close("init.lua")
+    file.close("gpio.lua")
+    file.close("mqtt.lua")
+    file.close("config.lua")
+
+    tmr.create():alarm(reset_wait, tmr.ALARM_SINGLE, function()
+        print("..Restarting......")
+        node.restart()
+    end)
     
   end
 end
