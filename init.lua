@@ -1,3 +1,7 @@
+--DELAY--
+print(">>>> 3 sec to stop <<<<")
+tmr.create():alarm(3000, tmr.ALARM_SINGLE,function() print(">>>><<<<") end)
+
 -- load credentials, 'SSID' and 'PASSWORD' declared and initialize in there
 dofile("config.lua")
 dofile("gpio.lua")
@@ -110,6 +114,7 @@ wifi.eventmon.register(wifi.eventmon.STA_DISCONNECTED, wifi_disconnect_event)
 
 print("Connecting to WiFi access point...")
 
+--wifi.setphymode(wifi.PHYMODE_N)
 --wifi.setphymode(wifi.PHYMODE_G)
 wifi.setphymode(wifi.PHYMODE_B)
 

@@ -14,7 +14,11 @@ for k,v in pairs(config.GPIO) do
         gpio.mode(nr, gpio.OUTPUT)
         gpio.write(nr, gpio.LOW)
         print(v, " on Port", nr)
+    elseif (v == "INT") then --interupt
+        gpio.mode(nr, gpio.INT)
+        print(v, " on Port", nr)
     end    
 end
 
+gpio.mode(4, gpio.OUTPUT, gpio.PULLUP) --maybe fix reset
 -----------------------------
